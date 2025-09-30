@@ -3,16 +3,20 @@ import pandas as pd
 import io
 import zipfile
 
-st.set_page_config(page_title="Переоценка квартир", page_icon="🏠", layout="wide")
+# Настройка страницы
+st.set_page_config(
+    page_title="Переоценка квартир",
+    page_icon="my_icon.png",  # <- сюда можно вставить свой PNG или emoji "🏡"
+    layout="wide"
+)
 
-st.title("🏠 Переоценка квартир по проектам")
+st.title("🏠 Переоценка квартир по подразделениям")
 st.markdown("""
-Загрузите Excel с квартирами, выберите готовность объекта, проекты и сумму прибавки.  
+Загрузите Excel с квартирами, выберите готовность объекта, подразделения и сумму прибавки.  
 Приложение покажет превью данных и создаст архив с переоценёнными файлами.
 """)
-st.markdown("Версия 2.0 — 30.09.2025")  # <- для проверки
 
-
+# Загрузка файла
 uploaded_file = st.file_uploader("📥 Загрузите Excel-файл", type=["xlsx"])
 
 if uploaded_file:
@@ -21,7 +25,7 @@ if uploaded_file:
     except Exception as e:
         st.error(f"Ошибка при чтении файла: {e}")
     else:
-        required_cols = {"Готовность объекта", "Проект", "Номер квартиры", "Этаж",
+        required_cols = {"Готовность объекта", "Подразделение", "Номер квартиры", "Этаж",
                          "Площадь общая", "Тип квартиры", "Стоимость"}
         if not required_cols.issubset(df.columns):
             st.error(f"Файл должен содержать колонки: {', '.join(required_cols)}")
@@ -33,16 +37,16 @@ if uploaded_file:
             # Фильтруем по готовности
             df_filtered = df[df["Готовность объекта"] == readiness_choice]
 
-            # Выбор проектов
-            project_options = df_filtered["Проект"].unique()
-            chosen_projects = st.multiselect("Выберите проекты для переоценки:", project_options)
+            # Выбор подразделений
+            department_options = df_filtered["Подразделение"].unique()
+            chosen_departments = st.multiselect("Выберите подразделения для переоценки:", department_options)
 
             # Ввод суммы прибавки
             add_val = st.number_input("Сколько добавить к стоимости (₽):", step=10000, min_value=0)
 
             # Превью данных
-            if chosen_projects:
-                preview_df = df_filtered[df_filtered["Проект"].isin(chosen_projects)].copy()
+            if chosen_departments:
+                preview_df = df_filtered[df_filtered["Подразделение"].isin(chosen_departments)].copy()
                 preview_df["Новая стоимость"] = preview_df["Стоимость"] + add_val
                 preview_df = preview_df[["Номер квартиры", "Этаж", "Площадь общая",
                                          "Тип квартиры", "Стоимость", "Новая стоимость"]]
@@ -51,24 +55,24 @@ if uploaded_file:
 
             # Генерация ZIP
             if st.button("Выполнить пересчёт"):
-                if not chosen_projects:
-                    st.warning("Сначала выберите хотя бы один проект!")
+                if not chosen_departments:
+                    st.warning("Сначала выберите хотя бы одно подразделение!")
                 else:
                     buffer = io.BytesIO()
                     with zipfile.ZipFile(buffer, "w") as zf:
-                        for proj in chosen_projects:
-                            df_proj = df_filtered[df_filtered["Проект"] == proj].copy()
-                            df_proj["Новая стоимость"] = df_proj["Стоимость"] + add_val
-                            df_proj = df_proj[["Номер квартиры", "Этаж", "Площадь общая",
+                        for dept in chosen_departments:
+                            df_dept = df_filtered[df_filtered["Подразделение"] == dept].copy()
+                            df_dept["Новая стоимость"] = df_dept["Стоимость"] + add_val
+                            df_dept = df_dept[["Номер квартиры", "Этаж", "Площадь общая",
                                                "Тип квартиры", "Стоимость", "Новая стоимость"]]
                             out_file = io.BytesIO()
-                            df_proj.to_excel(out_file, index=False)
-                            zf.writestr(f"{proj}.xlsx", out_file.getvalue())
+                            df_dept.to_excel(out_file, index=False)
+                            zf.writestr(f"{dept}.xlsx", out_file.getvalue())
                     buffer.seek(0)
                     st.success("Файлы готовы! Скачайте архив ниже.")
                     st.download_button(
                         label="📥 Скачать архив",
                         data=buffer,
-                        file_name="recalculated_projects.zip",
+                        file_name="recalculated_departments.zip",
                         mime="application/zip"
                     )
