@@ -42,7 +42,7 @@ if uploaded_file:
             # Переименуем колонку "Стоимость"
             df = df.rename(columns={"Стоимость": "Стоимость по пред.приказу"})
 
-            # --- Фильтры с "Выбрать всё" ---
+            # --- Функция фильтров с "Выбрать всё" ---
             def multiselect_all(label, options):
                 opts = options.tolist()
                 opts.insert(0, "Все")  # добавляем опцию "Все"
@@ -66,6 +66,10 @@ if uploaded_file:
             # Фильтр по виду помещения (не выводим в таблице)
             vid_choices = multiselect_all("Выберите вид помещения:", df_filtered["Вид помещения"].unique())
             df_filtered = df_filtered[df_filtered["Вид помещения"].isin(vid_choices)]
+
+            # Фильтр по типу квартиры
+            flat_type_choices = multiselect_all("Выберите тип квартиры:", df_filtered["Тип квартиры"].unique())
+            df_filtered = df_filtered[df_filtered["Тип квартиры"].isin(flat_type_choices)]
 
             # Сумма прибавки
             add_val = st.number_input("Сколько добавить к стоимости (₽):", step=10000, min_value=0)
