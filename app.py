@@ -42,34 +42,34 @@ if uploaded_file:
             # Переименуем колонку "Стоимость"
             df = df.rename(columns={"Стоимость": "Стоимость по пред.приказу"})
 
+            # --- Фильтры с "Выбрать всё" ---
+            def multiselect_all(label, options):
+                opts = options.tolist()
+                opts.insert(0, "Все")  # добавляем опцию "Все"
+                selected = st.multiselect(label, opts)
+                if "Все" in selected or not selected:
+                    return options  # выбираем все
+                return selected
+
             # Фильтр по готовности
-            readiness_options = df["Готовность объекта"].unique()
-            readiness_choices = st.multiselect("Выберите готовность объекта:", readiness_options)
-            df_filtered = df[df["Готовность объекта"].isin(readiness_choices)] if readiness_choices else df.copy()
+            readiness_choices = multiselect_all("Выберите готовность объекта:", df["Готовность объекта"].unique())
+            df_filtered = df[df["Готовность объекта"].isin(readiness_choices)]
 
             # Фильтр по подразделениям
-            department_options = df_filtered["Подразделение"].unique()
-            chosen_departments = st.multiselect("Выберите подразделения для переоценки:", department_options)
-            if chosen_departments:
-                df_filtered = df_filtered[df_filtered["Подразделение"].isin(chosen_departments)]
+            dept_choices = multiselect_all("Выберите подразделения для переоценки:", df_filtered["Подразделение"].unique())
+            df_filtered = df_filtered[df_filtered["Подразделение"].isin(dept_choices)]
 
             # Фильтр по статусу
-            status_options = df_filtered["Статус"].unique()
-            chosen_status = st.multiselect("Выберите статус:", status_options)
-            if chosen_status:
-                df_filtered = df_filtered[df_filtered["Статус"].isin(chosen_status)]
+            status_choices = multiselect_all("Выберите статус:", df_filtered["Статус"].unique())
+            df_filtered = df_filtered[df_filtered["Статус"].isin(status_choices)]
 
             # Фильтр по виду помещения
-            vid_options = df_filtered["Вид помещения"].unique()
-            chosen_vid = st.multiselect("Выберите вид помещения:", vid_options)
-            if chosen_vid:
-                df_filtered = df_filtered[df_filtered["Вид помещения"].isin(chosen_vid)]
+            vid_choices = multiselect_all("Выберите вид помещения:", df_filtered["Вид помещения"].unique())
+            df_filtered = df_filtered[df_filtered["Вид помещения"].isin(vid_choices)]
 
             # Фильтр по типу квартиры
-            flat_type_options = df_filtered["Тип квартиры"].unique()
-            chosen_flat_types = st.multiselect("Выберите тип квартиры:", flat_type_options)
-            if chosen_flat_types:
-                df_filtered = df_filtered[df_filtered["Тип квартиры"].isin(chosen_flat_types)]
+            flat_type_choices = multiselect_all("Выберите тип квартиры:", df_filtered["Тип квартиры"].unique())
+            df_filtered = df_filtered[df_filtered["Тип квартиры"].isin(flat_type_choices)]
 
             # Сумма прибавки
             add_val = st.number_input("Сколько добавить к стоимости (₽):", step=10000, min_value=0)
@@ -78,7 +78,7 @@ if uploaded_file:
             report_date = st.date_input("📅 Выберите дату для имени файла")
 
             # Превью данных
-            if not df_filtered.empty and chosen_departments:
+            if not df_filtered.empty:
                 preview_df = df_filtered.copy()
                 preview_df["Новая стоимость"] = preview_df["Стоимость по пред.приказу"] + add_val
                 preview_df["Новая цена кв.м"] = preview_df["Новая стоимость"] / preview_df["Площадь общая"]
@@ -112,7 +112,7 @@ if uploaded_file:
                     with zipfile.ZipFile(buffer, "w") as zf:
                         date_str = report_date.strftime("%d.%m.%Y")
 
-                        for dept in chosen_departments:
+                        for dept in df_filtered["Подразделение"].unique():
                             df_dept = df_filtered[df_filtered["Подразделение"] == dept].copy()
                             df_dept["Новая стоимость"] = df_dept["Стоимость по пред.приказу"] + add_val
                             df_dept["Новая цена кв.м"] = df_dept["Новая стоимость"] / df_dept["Площадь общая"]
@@ -167,8 +167,7 @@ if uploaded_file:
                                     cell.alignment = align_center
                                     if row_idx % 2 == 0:
                                         cell.fill = zebra_fill
-                                    # Форматы чисел
-                                    if cell.column == 3:  # "Площадь общая"
+                                    if cell.column == 3:
                                         cell.number_format = '#,##0.00'
                                     elif isinstance(cell.value, (int, float)):
                                         cell.number_format = '#,##0'
@@ -196,7 +195,6 @@ if uploaded_file:
                                         pass
                                 ws.column_dimensions[col_letter].width = max_length + 2
 
-                            # Сохраняем в буфер
                             final_buffer = io.BytesIO()
                             wb.save(final_buffer)
                             final_buffer.seek(0)
